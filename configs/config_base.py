@@ -1,8 +1,10 @@
-from decimal import Decimal
 import os
+from decimal import Decimal
 
+DEBUG = False
+TESTING = False
 
-ENVIRONMENTS = { 
+ENVIRONMENTS = {
     "streaming": {
         "real": "stream-fxtrade.oanda.com",
         "practice": "stream-fxpractice.oanda.com",
@@ -26,3 +28,12 @@ ACCOUNT_ID = os.environ.get('OANDA_API_ACCOUNT_ID', None)
 
 BASE_CURRENCY = "GBP"
 EQUITY = Decimal("100000.00")
+
+
+try:
+    if os.getenv('CONFIG') == 'TEST':
+        from configs.config_base_unittest import *
+    else:
+        from configs.config_base_local import *
+except ImportError:
+    raise ImportError('You need to create an app specific local config file.')

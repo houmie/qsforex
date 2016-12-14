@@ -1,23 +1,24 @@
 from __future__ import print_function
 
-from copy import deepcopy
-from decimal import Decimal, getcontext, ROUND_HALF_DOWN
 import logging
 import os
+from copy import deepcopy
+from decimal import Decimal
 
 import pandas as pd
 
-from qsforex.event.event import OrderEvent
-from qsforex.performance.performance import create_drawdowns
-from qsforex.portfolio.position import Position
-from qsforex.settings import OUTPUT_RESULTS_DIR
+from event.event import OrderEvent
+from performance.performance import create_drawdowns
+from position import Position
+
+from configs import config_base as config
 
 
 class Portfolio(object):
     def __init__(
-        self, ticker, events, home_currency="GBP", 
-        leverage=20, equity=Decimal("100000.00"), 
-        risk_per_trade=Decimal("0.02"), backtest=True
+            self, ticker, events, home_currency="GBP",
+            leverage=20, equity=Decimal("100000.00"),
+            risk_per_trade=Decimal("0.02"), backtest=True
     ):
         self.ticker = ticker
         self.events = events
@@ -37,10 +38,10 @@ class Portfolio(object):
         return self.equity * self.risk_per_trade
 
     def add_new_position(
-        self, position_type, currency_pair, units, ticker
+            self, position_type, currency_pair, units, ticker
     ):
         ps = Position(
-            self.home_currency, position_type, 
+            self.home_currency, position_type,
             currency_pair, units, ticker
         )
         self.positions[currency_pair] = ps
@@ -69,12 +70,12 @@ class Portfolio(object):
             ps = self.positions[currency_pair]
             pnl = ps.close_position()
             self.balance += pnl
-            del[self.positions[currency_pair]]
+            del [self.positions[currency_pair]]
             return True
 
     def create_equity_file(self):
         filename = "backtest.csv"
-        out_file = open(os.path.join(OUTPUT_RESULTS_DIR, filename), "w")
+        out_file = open(os.path.join(config.OUTPUT_RESULTS_DIR, filename), "w")
         header = "Timestamp,Balance"
         for pair in self.ticker.pairs:
             header += ",%s" % pair
@@ -88,24 +89,24 @@ class Portfolio(object):
         # Closes off the Backtest.csv file so it can be 
         # read via Pandas without problems
         self.backtest_file.close()
-        
+
         in_filename = "backtest.csv"
-        out_filename = "equity.csv" 
-        in_file = os.path.join(OUTPUT_RESULTS_DIR, in_filename)
-        out_file = os.path.join(OUTPUT_RESULTS_DIR, out_filename)
+        out_filename = "equity.csv"
+        in_file = os.path.join(config.OUTPUT_RESULTS_DIR, in_filename)
+        out_file = os.path.join(config.OUTPUT_RESULTS_DIR, out_filename)
 
         # Create equity curve dataframe
         df = pd.read_csv(in_file, index_col=0)
         df.dropna(inplace=True)
         df["Total"] = df.sum(axis=1)
         df["Returns"] = df["Total"].pct_change()
-        df["Equity"] = (1.0+df["Returns"]).cumprod()
-        
+        df["Equity"] = (1.0 + df["Returns"]).cumprod()
+
         # Create drawdown statistics
         drawdown, max_dd, dd_duration = create_drawdowns(df["Equity"])
         df["Drawdown"] = drawdown
         df.to_csv(out_file, index=True)
-        
+
         print("Simulation complete and results exported to %s" % out_filename)
 
     def update_portfolio(self, tick_event):
@@ -144,7 +145,7 @@ class Portfolio(object):
             currency_pair = signal_event.instrument
             units = int(self.trade_units)
             time = signal_event.time
-            
+
             # If there is no position, create one
             if currency_pair not in self.positions:
                 if side == "buy":
@@ -152,7 +153,7 @@ class Portfolio(object):
                 else:
                     position_type = "short"
                 self.add_new_position(
-                    position_type, currency_pair, 
+                    position_type, currency_pair,
                     units, self.ticker
                 )
 
@@ -161,7 +162,7 @@ class Portfolio(object):
                 ps = self.positions[currency_pair]
 
                 if side == "buy" and ps.position_type == "long":
-                    add_position_units(currency_pair, units)
+                    self.add_position_units(currency_pair, units)
 
                 elif side == "sell" and ps.position_type == "long":
                     if units == ps.units:
@@ -180,9 +181,9 @@ class Portfolio(object):
                         return
                     elif units > ps.units:
                         return
-                        
+
                 elif side == "sell" and ps.position_type == "short":
-                    add_position_units(currency_pair, units)
+                    self.add_position_units(currency_pair, units)
 
             order = OrderEvent(currency_pair, units, "market", side)
             self.events.put(order)
@@ -190,4 +191,3 @@ class Portfolio(object):
             self.logger.info("Portfolio Balance: %s" % self.balance)
         else:
             self.logger.info("Unable to execute order as price data was insufficient.")
-        

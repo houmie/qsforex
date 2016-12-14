@@ -1,7 +1,8 @@
-import os, os.path
+import os.path
 
-import pandas as pd
 import matplotlib
+import pandas as pd
+
 try:
     matplotlib.use('TkAgg')
 except:
@@ -9,8 +10,7 @@ except:
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from qsforex.settings import OUTPUT_RESULTS_DIR
-
+from configs import config_base as config
 
 if __name__ == "__main__":
     """
@@ -23,15 +23,15 @@ if __name__ == "__main__":
     sns.set_palette("deep", desat=.6)
     sns.set_context(rc={"figure.figsize": (8, 4)})
 
-    equity_file = os.path.join(OUTPUT_RESULTS_DIR, "equity.csv")
+    equity_file = os.path.join(config.OUTPUT_RESULTS_DIR, "equity.csv")
     equity = pd.io.parsers.read_csv(
         equity_file, parse_dates=True, header=0, index_col=0
     )
 
     # Plot three charts: Equity curve, period returns, drawdowns
     fig = plt.figure()
-    fig.patch.set_facecolor('white')     # Set the outer colour to white
-    
+    fig.patch.set_facecolor('white')  # Set the outer colour to white
+
     # Plot the equity curve
     ax1 = fig.add_subplot(311, ylabel='Portfolio value')
     equity["Equity"].plot(ax=ax1, color=sns.color_palette()[0])

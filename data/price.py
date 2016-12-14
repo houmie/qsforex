@@ -1,17 +1,14 @@
 from __future__ import print_function
 
-import datetime
-from decimal import Decimal, getcontext, ROUND_HALF_DOWN
 import os
 import os.path
 import re
-import time
+from decimal import Decimal, getcontext, ROUND_HALF_DOWN
 
-import numpy as np
 import pandas as pd
 
-from qsforex import settings
-from qsforex.event.event import TickEvent
+from configs import config_base as config
+from event.event import TickEvent
 
 
 class PriceHandler(object):
@@ -42,17 +39,17 @@ class PriceHandler(object):
         be more robust and straightforward to follow.
         """
         prices_dict = dict(
-            (k, v) for k,v in [
+            (k, v) for k, v in [
                 (p, {"bid": None, "ask": None, "time": None}) for p in self.pairs
-            ]
+                ]
         )
         inv_prices_dict = dict(
-            (k, v) for k,v in [
+            (k, v) for k, v in [
                 (
-                    "%s%s" % (p[3:], p[:3]), 
+                    "%s%s" % (p[3:], p[:3]),
                     {"bid": None, "ask": None, "time": None}
                 ) for p in self.pairs
-            ]
+                ]
         )
         prices_dict.update(inv_prices_dict)
         return prices_dict
@@ -65,10 +62,10 @@ class PriceHandler(object):
         """
         getcontext().rounding = ROUND_HALF_DOWN
         inv_pair = "%s%s" % (pair[3:], pair[:3])
-        inv_bid = (Decimal("1.0")/bid).quantize(
+        inv_bid = (Decimal("1.0") / bid).quantize(
             Decimal("0.00001")
         )
-        inv_ask = (Decimal("1.0")/ask).quantize(
+        inv_ask = (Decimal("1.0") / ask).quantize(
             Decimal("0.00001")
         )
         return inv_pair, inv_bid, inv_ask
@@ -108,7 +105,7 @@ class HistoricCSVPriceHandler(PriceHandler):
         )
 
     def _list_all_csv_files(self):
-        files = os.listdir(settings.CSV_DATA_DIR)
+        files = os.listdir(config.CSV_DATA_DIR)
         pattern = re.compile("[A-Z]{6}_\d{8}.csv")
         matching_files = [f for f in files if pattern.search(f)]
         matching_files.sort()
@@ -138,7 +135,7 @@ class HistoricCSVPriceHandler(PriceHandler):
         for p in self.pairs:
             pair_path = os.path.join(self.csv_dir, '%s_%s.csv' % (p, date_str))
             self.pair_frames[p] = pd.io.parsers.read_csv(
-                pair_path, header=True, index_col=0, 
+                pair_path, header=True, index_col=0,
                 parse_dates=True, dayfirst=True,
                 names=("Time", "Ask", "Bid", "AskVolume", "BidVolume")
             )
@@ -147,7 +144,7 @@ class HistoricCSVPriceHandler(PriceHandler):
 
     def _update_csv_for_day(self):
         try:
-            dt = self.file_dates[self.cur_date_idx+1]
+            dt = self.file_dates[self.cur_date_idx + 1]
         except IndexError:  # End of file dates
             return False
         else:
@@ -173,10 +170,10 @@ class HistoricCSVPriceHandler(PriceHandler):
             # End of the current days data
             if self._update_csv_for_day():
                 index, row = next(self.cur_date_pairs)
-            else: # End of the data
+            else:  # End of the data
                 self.continue_backtest = False
                 return
-        
+
         getcontext().rounding = ROUND_HALF_DOWN
         pair = row["Pair"]
         bid = Decimal(str(row["Bid"])).quantize(
